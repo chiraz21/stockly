@@ -1,0 +1,2 @@
+# stockly
+warehouse managment app
