@@ -1,0 +1,1 @@
+ C:\\xampp\\htdocs\\stockly\\frontend\\build\\fc4fd23135ea8c30663a6cb540387ff8\\dart_build_result.json: 
