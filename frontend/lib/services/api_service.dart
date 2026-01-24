@@ -3,8 +3,9 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class ApiService {
-  static const baseUrl =
-      "http://192.168.1.11/stockly/backend/api";
+  static const String baseUrl =
+    "http://stockly.local/stockly/backend/api";
+
 
   static Future<Map<String, dynamic>> login(
       String email, String password) async {

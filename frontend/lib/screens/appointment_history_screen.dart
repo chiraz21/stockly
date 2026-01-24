@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:stockly/config/api_config.dart';
+
 
 class AppointmentHistoryScreen extends StatefulWidget {
   final int userId;
@@ -23,9 +25,8 @@ class _AppointmentHistoryScreenState extends State<AppointmentHistoryScreen> {
   Future<void> fetchHistory() async {
     try {
       final response = await http.get(
-        Uri.parse("http://192.168.1.11/stockly/backend/api/get_history.php?user_id=${widget.userId}"),
+        Uri.parse("${ApiConfig.baseUrl}/get_history.php?user_id=${widget.userId}"),
       );
-
       final data = jsonDecode(response.body);
       if (data['success']) {
         setState(() {
@@ -35,23 +36,37 @@ class _AppointmentHistoryScreenState extends State<AppointmentHistoryScreen> {
       }
     } catch (e) {
       setState(() => isLoading = false);
-      print("Error: $e");
+      debugPrint("Error fetching history: $e");
+    }
+  }
+
+  Color getStatusColor(String status) {
+    switch (status) {
+      case 'Completed':
+        return const Color(0xFF63C092); // Matches Scheduled Green
+      case 'Rejected':
+        return Colors.redAccent;
+      default:
+        return Colors.grey;
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7F6),
+      backgroundColor: const Color(0xFFF7FBF9),
       body: Column(
         children: [
-          // DARK GREEN HEADER
+          // ===== DARK GREEN HEADER =====
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(20, 60, 20, 40),
+            padding: const EdgeInsets.only(top: 50, bottom: 30, left: 20, right: 20),
             decoration: const BoxDecoration(
-              color: Color(0xFF429946), // Darker green for history
-              borderRadius: BorderRadius.only(bottomLeft: Radius.circular(40), bottomRight: Radius.circular(40)),
+              color: Color(0xFF5AB688), // Darker green as per history screen design
+              borderRadius: BorderRadius.only(
+                bottomLeft: Radius.circular(40),
+                bottomRight: Radius.circular(40),
+              ),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -60,17 +75,25 @@ class _AppointmentHistoryScreenState extends State<AppointmentHistoryScreen> {
                   icon: const Icon(Icons.arrow_back, color: Colors.white),
                   onPressed: () => Navigator.pop(context),
                 ),
+                const SizedBox(height: 10),
                 Row(
                   children: [
-                    const Icon(Icons.history, color: Colors.white, size: 40),
-                    const SizedBox(width: 15),
+                    const Icon(Icons.history, color: Colors.white, size: 32),
+                    const SizedBox(width: 12),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text("Appointment History",
-                            style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
-                        Text("${history.length} past appointments",
-                            style: const TextStyle(color: Colors.white70, fontSize: 14)),
+                        const Text(
+                          "Appointment History",
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold),
+                        ),
+                        Text(
+                          "${history.length} past appointments",
+                          style: const TextStyle(color: Colors.white70, fontSize: 16),
+                        ),
                       ],
                     ),
                   ],
@@ -79,95 +102,159 @@ class _AppointmentHistoryScreenState extends State<AppointmentHistoryScreen> {
             ),
           ),
 
-          // SEARCH BAR
-          Padding(
-            padding: const EdgeInsets.all(20),
-            child: TextField(
-              decoration: InputDecoration(
-                prefixIcon: const Icon(Icons.search),
-                hintText: "Search by ID or grain type...",
-                filled: true,
-                fillColor: Colors.white,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(15),
-                  borderSide: const BorderSide(color: Color(0xFF63C092)),
+          // ===== SEARCH BAR =====
+          Center(
+            child: Container(
+              constraints: const BoxConstraints(maxWidth: 600),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+              child: TextField(
+                decoration: InputDecoration(
+                  prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                  hintText: "Search by ID or grain type...",
+                  filled: true,
+                  fillColor: Colors.white,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 15),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(20),
+                    borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(20),
+                    borderSide: const BorderSide(color: Color(0xFF5AB688)),
+                  ),
                 ),
               ),
             ),
           ),
 
-          // HISTORY LIST
+          // ===== HISTORY LIST =====
           Expanded(
             child: isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    itemCount: history.length,
-                    itemBuilder: (context, index) {
-                      return historyCard(history[index]);
-                    },
-                  ),
+                ? const Center(child: CircularProgressIndicator(color: Color(0xFF63C092)))
+                : history.isEmpty
+                    ? const Center(child: Text("No records found", style: TextStyle(color: Colors.grey)))
+                    : Center(
+                        child: Container(
+                          constraints: const BoxConstraints(maxWidth: 800),
+                          child: ListView.builder(
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            itemCount: history.length,
+                            itemBuilder: (context, index) => _buildHistoryCard(history[index]),
+                          ),
+                        ),
+                      ),
           ),
         ],
       ),
     );
   }
 
-  Widget historyCard(Map item) {
-    bool isCompleted = item['status'] == 'Completed';
-    
+  Widget _buildHistoryCard(Map item) {
+    final String status = item['status'] ?? 'Completed';
+    final String farmerName = item['farmer_name'] ?? "John Farmer";
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 15),
-      padding: const EdgeInsets.all(20),
+      margin: const EdgeInsets.only(bottom: 20),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.green.withOpacity(0.2)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(item['grain_type'],
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green)),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                decoration: BoxDecoration(
-                  color: isCompleted ? Colors.green : Colors.red,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  item['status'] ?? "Completed",
-                  style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
-                ),
-              ),
-            ],
+        borderRadius: BorderRadius.circular(25),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
           ),
-          const SizedBox(height: 4),
-          Text("ID: APT00${item['id']}", style: TextStyle(color: Colors.grey[600])),
-          const SizedBox(height: 15),
-          
-          infoRow(Icons.calendar_today, item['delivery_date']),
-          infoRow(Icons.access_time, item['preferred_time']),
-          infoRow(Icons.layers, "Requested: ${item['quantity_kg']} kg"),
-          
-          if (isCompleted)
-             infoRow(Icons.check_circle_outline, "Delivered: ${item['quantity_kg']} kg"),
         ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item['grain_type'] ?? "Rice",
+                      style: const TextStyle(
+                        fontSize: 20, 
+                        fontWeight: FontWeight.bold, 
+                        color: Color(0xFF2D3142)
+                      ),
+                    ),
+                    Text(
+                      "Farmer: $farmerName",
+                      style: const TextStyle(
+                        color: Color(0xFF63C092), 
+                        fontWeight: FontWeight.w600, 
+                        fontSize: 14
+                      ),
+                    ),
+                  ],
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: getStatusColor(status).withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    status,
+                    style: TextStyle(
+                      color: getStatusColor(status), 
+                      fontSize: 13, 
+                      fontWeight: FontWeight.bold
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 5),
+            Text(
+              "ID: APT00${item['id']}",
+              style: const TextStyle(color: Colors.grey, fontSize: 13),
+            ),
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 15),
+              child: Divider(color: Color(0xFFF1F1F1), height: 1),
+            ),
+            _buildInfoRow(Icons.calendar_today_outlined, item['delivery_date'] ?? "N/A"),
+            _buildInfoRow(Icons.access_time_rounded, item['preferred_time'] ?? "N/A"),
+            // Specific for history: Showing both requested and delivered amounts
+            _buildInfoRow(Icons.scale_outlined, "Requested: ${item['quantity_kg']} kg"),
+            if (status == 'Completed')
+              _buildInfoRow(Icons.check_circle_outline, "Delivered: ${item['delivered_kg'] ?? item['quantity_kg']} kg"),
+          ],
+        ),
       ),
     );
   }
 
-  Widget infoRow(IconData icon, String text) {
+  Widget _buildInfoRow(IconData icon, String text) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: 12),
       child: Row(
         children: [
-          Icon(icon, size: 18, color: Colors.green),
-          const SizedBox(width: 10),
-          Text(text, style: const TextStyle(fontSize: 14)),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF1FBF6),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, size: 18, color: const Color(0xFF63C092)),
+          ),
+          const SizedBox(width: 15),
+          Text(
+            text,
+            style: const TextStyle(
+              fontSize: 15, 
+              color: Color(0xFF4A4A4A), 
+              fontWeight: FontWeight.w500
+            ),
+          ),
         ],
       ),
     );

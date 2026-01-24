@@ -10,13 +10,13 @@ $password = "";
 try {
     $conn = new PDO("mysql:host=$host;dbname=$db_name", $username, $password);
     
-    $userId = $_GET['user_id'];
+    $userId = $_GET['user_id'] ?? '';
 
     if(!empty($userId)) {
-        // Fetch non-pending appointments or past dates
+        // Fetch finished or turned down appointments. DESC shows the newest history first.
         $query = "SELECT * FROM appointments 
                   WHERE user_id = :uid 
-                  AND status IN ('Completed', 'Rejected') 
+                  AND status IN ('Completed', 'Rejected', 'Cancelled') 
                   ORDER BY delivery_date DESC";
                   
         $stmt = $conn->prepare($query);
